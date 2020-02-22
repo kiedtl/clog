@@ -1,0 +1,179 @@
+#!/bin/bash
+#
+# clog - record logs of an IRC channel
+# (c) Kiëd Llaentenn <kiedtl@protonmail.com>
+# See the LICENSE for copyright information.
+
+username="kiedtl"
+hostname="irc.freenode.net"
+nickname="mockmastodon"
+hostport="6667"
+channel="#botwar"
+logdir="$HOME/.local/share/clog"
+
+
+main() {
+    # just in case log file doesn't exist
+    [ ! -f "$logdir/$channel" ] && {
+        mkdir -p "$logdir"
+        :> "$logdir/$channel"
+    }
+
+    update_log "*** clog start $(date)"
+
+    trap clean INT EXIT
+
+    irc_setup
+}
+
+usage() {
+    printf "usage: clog [-uhnpcld]\n"
+    exit 1
+}
+
+update_log() {
+    printf "$(date '+%H:%M %d-%m-%Y')\t$1\n" >>"$logdir/$channel"
+}
+
+clean() {
+    update_log "*** clog stop $(date)"
+
+    printf "sending quit... "
+    printf "PART %s\n" "$channel" >&69
+    printf "QUIT %s\n" "**yawn**" >&69
+    printf "done\n"
+    exit 0
+}
+
+irc_setup() {
+    printf "connecting to '${hostname}' on port ${hostport}... "
+
+    exec 69<>"/dev/tcp/${hostname}/${hostport}" || {
+        printf "error: couldn't connect to ${hostname}:${port}.\n" >&2
+        exit 1
+    }
+
+    printf "done\n\n"
+
+    irc_listen &
+
+    sleep 5
+
+    printf "setting nickname to ${nickname}... "
+    printf "NICK %s\n" "${nickname}" >&69
+    printf "done\n"
+
+    printf "setting username to ${username}... "
+    printf "USER %s - - :%s\n" "${nickname}" "${nickname}" >&69
+    printf "done\n"
+
+    printf "joining '${channel}' channel... "
+    printf "JOIN %s\n" "${channel}"  >&69
+    printf "done\n\n"
+
+    # TODO: support for password-protected servers.
+
+    printf "enter a password to login with NickServ (blank for no login): "
+    read password
+
+    [ -z "${password}" ] || {
+        printf "authenticating with NickServ... "
+        printf "PRIVMSG %s :%s\n" "NickServ" "identify ${password}" >&69
+        printf "done\n\n"
+    }
+
+    wait
+}
+
+irc_listen() {
+    printf "listening... \n"
+    while read -sru 69 || :; do
+        REPLY=${REPLY%%$'\r'*}
+
+        [ -z "${REPLY}" ] ||
+            printf "recieved data from host: '${REPLY}'\n"
+
+        case $REPLY in
+            PING*)
+                printf "PONG%s\n" "${REPLY##PING}" >&69
+            ;;
+
+            *PRIVMSG*)
+                irc_parse "$REPLY"
+
+                case $REPLY in
+                    *$'\001ACTION'*$'\001'*)
+                        mesg=${mesg/$'\001ACTION'}
+
+                        printf -v o '%20s %s%s' "*" "$unick" "${mesg/$'\001'}"
+                        update_log "$o"
+                    ;;
+
+                    *)
+                        printf -v o '%20s %s' "<${unick:0:20}>" "$mesg"
+                        update_log "$o"
+                    ;;
+                esac
+            ;;
+
+            *JOIN*|*PART*|*QUIT*)
+                REPLY=${REPLY:1}
+                unick=${REPLY%%\!*}
+
+                case $REPLY in
+                    *JOIN*): '-->joined' ;;
+                    *PART*): '<--left'   ;;
+                    *QUIT*): '<--quit'   ;;
+                esac
+
+                cas=$_
+
+                cur="#${REPLY#*\#}"
+
+                cur=${cur%% *}
+
+                [[ "${cas:3}" == "quit" ]] && cur=$chan
+
+                    printf -v out '%20s %s %s %s' \
+                        "${cas::3}" "$unick" "has ${cas:3}" "$cur"
+
+                    update_log "$out"
+                ;;
+
+            *NOTICE*)
+                update_log "${REPLY##*NOTICE }"
+            ;;
+
+            *NICK*)
+                irc_parse "$REPLY"
+
+                printf -v out '%20s %s' "--" \
+                    "$unick is now known as $mesg"
+
+                update_log "$out"
+            ;;
+
+            *KICK*)
+                irc_parse "$REPLY"
+
+                printf -v out '%20s %s' "--" \
+                    "$unick has kicked $mesg"
+
+                update_log "$out"
+            ;;
+
+            *) ;;
+        esac
+    done
+
+}
+
+irc_parse() {
+    mesg=${1#* :}
+    www=${1%%$mesg*}
+
+    read -ra args <<< "${www##:}"
+    IFS='!@' read -r unick _ _ <<< "${args[0]}"
+}
+
+main "$@"
