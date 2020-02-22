@@ -11,16 +11,10 @@ hostname="irc.freenode.net"
 nickname="mockmastodon"
 hostport="6667"
 channel="#kisslinux"
-logdir="$HOME/.local/share/clog"
+logfile="$HOME/.local/share/clog/${channel#\#}-$(date +%d-%m-%Y).log"
 
 
 main() {
-    # just in case log file doesn't exist
-    [ ! -f "$logdir/$channel" ] && {
-        mkdir -p "$logdir"
-        :> "$logdir/$channel"
-    }
-
     update_log "*** clog start $(date)"
 
     trap clean INT EXIT
@@ -34,7 +28,16 @@ usage() {
 }
 
 update_log() {
-    printf "$(date '+%H:%M %d-%m-%Y')\t$1\n" >>"$logdir/$channel"
+    # update logfile just in case it's tomorrow
+    logfile="$HOME/.local/share/clog/${channel#\#}-$(date +%d-%m-%Y).log"
+
+    # just in case log file doesn't exist
+    [ ! -f "$logfile" ] && {
+        mkdir -p "$(dirname "$logfile")"
+        :> "$logfile"
+    }
+
+    printf "$(date '+%H:%M %d-%m-%Y')\t$1\n" >>"$logfile"
 }
 
 clean() {
