@@ -37,7 +37,7 @@ update_log() {
         :> "$logfile"
     }
 
-    printf "$(date '+%H:%M')\t$1\n" >>"$logfile"
+    printf "$(date '+%H:%M')    $1\n" >>"$logfile"
 }
 
 clean() {
@@ -114,12 +114,12 @@ irc_listen() {
                     *$'\001ACTION'*$'\001'*)
                         mesg=${mesg/$'\001ACTION'}
 
-                        printf -v o '%10s %s%s' "*" "$unick" "${mesg/$'\001'}"
+                        printf -v o '%12s %s%s' "*" "$unick" "${mesg/$'\001'}"
                         update_log "$o"
                     ;;
 
                     *)
-                        printf -v o '%10s %s' "<${unick:0:10}>" "$mesg"
+                        printf -v o '%12s %s' "<${unick:0:12}>" "$mesg"
                         update_log "$o"
                     ;;
                 esac
@@ -143,7 +143,7 @@ irc_listen() {
 
                 [[ "${cas:3}" == "quit" ]] && cur=$chan
 
-                    printf -v out '%10s %s %s %s' \
+                    printf -v out '%12s %s %s %s' \
                         "${cas::3}" "$unick" "has ${cas:3}" "$cur"
 
                     update_log "$out"
@@ -156,7 +156,7 @@ irc_listen() {
             NICK*)
                 irc_parse "$REPLY"
 
-                printf -v out '%10s %s' "--" \
+                printf -v out '%12s %s' "--" \
                     "$unick is now known as $mesg"
 
                 update_log "$out"
@@ -165,7 +165,7 @@ irc_listen() {
             KICK*)
                 irc_parse "$REPLY"
 
-                printf -v out '%10s %s' "--" \
+                printf -v out '%12s %s' "--" \
                     "$unick has kicked $mesg"
 
                 update_log "$out"
