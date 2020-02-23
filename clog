@@ -62,8 +62,6 @@ irc_setup() {
 
     irc_listen &
 
-    sleep 10
-
     printf "setting nickname to ${nickname}... "
     printf "NICK %s\n" "${nickname}" >&69
     printf "done\n"
