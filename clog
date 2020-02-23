@@ -17,7 +17,7 @@ logfile="$HOME/.local/share/clog/${channel#\#}-$(date +%d-%m-%Y).log"
 main() {
     update_log "*** clog start $(date)"
 
-    trap clean INT EXIT
+    trap clean INT
 
     irc_setup
 }
