@@ -37,7 +37,7 @@ update_log() {
         :> "$logfile"
     }
 
-    printf "$(date '+%H:%M %d-%m-%Y')\t$1\n" >>"$logfile"
+    printf "$(date '+%H:%M')\t$1\n" >>"$logfile"
 }
 
 clean() {
@@ -98,12 +98,16 @@ irc_listen() {
         [ -z "${REPLY}" ] ||
             printf "remote: ${REPLY}\n"
 
-        case $REPLY in
+        # remove prefix in advance so that we don't have to
+        # wildcards later to match the IRC command
+        body="${REPLY#:* }"
+
+        case $body in
             PING*)
                 printf "PONG%s\n" "${REPLY##PING}" >&69
             ;;
 
-            *PRIVMSG*)
+            PRIVMSG*)
                 irc_parse "$REPLY"
 
                 case $REPLY in
@@ -121,7 +125,7 @@ irc_listen() {
                 esac
             ;;
 
-            *JOIN*|*PART*|*QUIT*)
+            JOIN*|PART*|QUIT*)
                 REPLY=${REPLY:1}
                 unick=${REPLY%%\!*}
 
@@ -145,11 +149,11 @@ irc_listen() {
                     update_log "$out"
                 ;;
 
-            *NOTICE*)
+            NOTICE*)
                 update_log "${REPLY##*NOTICE }"
             ;;
 
-            *NICK*)
+            NICK*)
                 irc_parse "$REPLY"
 
                 printf -v out '%10s %s' "--" \
@@ -158,7 +162,7 @@ irc_listen() {
                 update_log "$out"
             ;;
 
-            *KICK*)
+            KICK*)
                 irc_parse "$REPLY"
 
                 printf -v out '%10s %s' "--" \
