@@ -51,8 +51,11 @@ clean() {
 }
 
 irc_setup() {
-    printf "connecting to '${hostname}' on port ${hostport}... "
+    printf "enter a password to authenticate via NickServ (blank for no login): "
+    read -rs password
+    printf "\n"
 
+    printf "connecting to '${hostname}' on port ${hostport}... "
     exec 69<>"/dev/tcp/${hostname}/${hostport}" || {
         printf "error: couldn't connect to ${hostname}:${port}.\n" >&2
         exit 1
@@ -75,9 +78,6 @@ irc_setup() {
     printf "done\n\n"
 
     # TODO: support for password-protected servers.
-
-    printf "enter a password to login with NickServ (blank for no login): "
-    read password
 
     [ -z "${password}" ] || {
         printf "authenticating with NickServ... "
@@ -105,7 +105,7 @@ irc_listen() {
                 printf "PONG%s\n" "${REPLY##PING}" >&69
             ;;
 
-            PRIVMSG*)
+            PRIVMSG*|NOTICE*)
                 irc_parse "$REPLY"
 
                 case $REPLY in
@@ -117,7 +117,15 @@ irc_listen() {
                     ;;
 
                     *)
-                        printf -v o '%12s %s' "<${unick:0:12}>" "$mesg"
+                        case $body in
+                            PRIVMSG*)
+                                printf -v o '%12s %s' "<${unick:0:12}>" "$mesg"
+                                ;;
+                            NOTICE*)
+                                printf -v o '%12s %s' "[${unick:0:12}]" "$mesg"
+                                ;;
+                        esac
+
                         update_log "$o"
                     ;;
                 esac
@@ -147,9 +155,6 @@ irc_listen() {
                     update_log "$out"
                 ;;
 
-            NOTICE*)
-                update_log "${REPLY##*NOTICE }"
-            ;;
 
             NICK*)
                 irc_parse "$REPLY"
@@ -158,7 +163,7 @@ irc_listen() {
                     "$unick is now known as $mesg"
 
                 update_log "$out"
-            ;;
+                ;;
 
             KICK*)
                 irc_parse "$REPLY"
@@ -167,7 +172,7 @@ irc_listen() {
                     "$unick has kicked $mesg"
 
                 update_log "$out"
-            ;;
+                ;;
 
             *) ;;
         esac
