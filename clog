@@ -10,7 +10,7 @@ username="kiedtl"
 hostname="irc.freenode.net"
 nickname="mockmastodon"
 hostport="6667"
-channel="#kisslinux"
+channel="#test"
 logfile="$HOME/.local/share/clog/${channel#\#}-$(date +%d-%m-%Y).log"
 
 
@@ -51,9 +51,10 @@ clean() {
 }
 
 irc_setup() {
-    printf "enter a password to authenticate via NickServ (blank for no login): "
-    read -rs password
-    printf "\n"
+    #printf "enter a password to authenticate via NickServ (blank for no login): "
+    #read -rs password
+    #printf "\n"
+    password=$(pash show freenode)
 
     printf "connecting to '${hostname}' on port ${hostport}... "
     exec 69<>"/dev/tcp/${hostname}/${hostport}" || {
